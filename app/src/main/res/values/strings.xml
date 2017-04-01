@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Mnist</string>
+    <string name="clean">Clean</string>
+    <string name="detect">Detect</string>
+</resources>
