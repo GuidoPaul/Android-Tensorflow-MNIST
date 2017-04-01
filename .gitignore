@@ -8,5 +8,5 @@
 /captures
 .externalNativeBuild
 /.idea
-/mnist
+/mnist/*
 !/mnist/mnist.py
