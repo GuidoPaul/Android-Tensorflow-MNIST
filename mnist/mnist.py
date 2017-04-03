@@ -18,8 +18,8 @@ learning_rate = 0.001
 epochs = 10
 batch_size = 128
 dropout = 0.75
-display_step = 20
-save_step = 200
+display_every_n = 20
+save_every_n = 200
 
 # Number of samples to calculate validation and accuracy
 # Decrease this if you're running out of memory to calculate accuracy
@@ -48,11 +48,11 @@ def build_inference(x, keep_prob=None):
             padding='SAME',
             name='pooling')
 
-    with tf.name_scope('hidden_1'):
+    with tf.name_scope('convolution_1'):
         # Layer 1 - 28*28*1 to 14*14*32
         conv1 = conv2d(x, weight([5, 5, 1, 32]), bias([32]))
         conv1 = maxpool2d(conv1, k=2)
-    with tf.name_scope('hidden_2'):
+    with tf.name_scope('convolution_2'):
         # Layer 2 - 14*14*32 to 7*7*64
         conv2 = conv2d(conv1, weight([5, 5, 32, 64]), bias([64]))
         conv2 = maxpool2d(conv2, k=2)
@@ -69,19 +69,13 @@ def build_inference(x, keep_prob=None):
         return tf.identity(out, name='output')
 
 
-def build_loss(labels, logits):
-    with tf.name_scope('loss'):
-        loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(
-                labels=labels, logits=logits))
-        tf.summary.scalar('loss', loss)
-    return loss
-
-
-def build_train(loss, learning_rate):
-    with tf.name_scope('optimizer'):
-        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-    return optimizer
+def build_cost(labels, logits):
+    with tf.name_scope('cost'):
+        loss = tf.nn.softmax_cross_entropy_with_logits(
+            labels=labels, logits=logits, name='loss')
+        cost = tf.reduce_mean(loss, name='cost')
+        tf.summary.scalar('cost', cost)
+    return cost
 
 
 def build_accuracy(labels, logits):
@@ -89,6 +83,12 @@ def build_accuracy(labels, logits):
         correct_pred = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
     return accuracy
+
+
+def build_train(loss, learning_rate):
+    with tf.name_scope('train'):
+        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+    return optimizer
 
 
 def main(_):
@@ -108,66 +108,87 @@ def main(_):
         FLAGS.data_dir, one_hot=True, reshape=False)
 
     with tf.Graph().as_default():
-        # Placeholders
-        x = tf.placeholder(tf.float32, [None, 28, 28, 1], name='input')
-        y = tf.placeholder(tf.float32, [None, 10], name='label')
+        # Declare placeholders we'll feed into the graph
+        with tf.name_scope('inputs'):
+            inputs = tf.placeholder(
+                tf.float32, [None, 28, 28, 1], name='inputs')
+        with tf.name_scope('targets'):
+            targets = tf.placeholder(tf.float32, [None, 10], name='targets')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
         # Build graph
-        inference = build_inference(x, keep_prob)
-        cost = build_loss(y, inference)
-        accuracy = build_accuracy(y, inference)
+        inference = build_inference(inputs, keep_prob)
+        cost = build_cost(targets, inference)
+        accuracy = build_accuracy(targets, inference)
         train = build_train(cost, learning_rate)
 
-        merge = tf.summary.merge_all()
+        merged = tf.summary.merge_all()
 
         # For writing training checkpoints.
         saver = tf.train.Saver(max_to_keep=1)
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            writer = tf.summary.FileWriter(FLAGS.summaries_dir, sess.graph)
+            train_summaries_dir = os.path.join(FLAGS.summaries_dir, 'train')
+            test_summaries_dir = os.path.join(FLAGS.summaries_dir, 'test')
+            train_writer = tf.summary.FileWriter(train_summaries_dir,
+                                                 sess.graph)
+            test_writer = tf.summary.FileWriter(test_summaries_dir)
 
             print('Start training...')
             start = time.time()
 
-            step = 1
+            n_batches = mnist_data.train.num_examples // batch_size
+            iterations = n_batches * epochs
 
             for epoch in range(epochs):
-                for batch in range(
-                        mnist_data.train.num_examples // batch_size):
+                for batch in range(n_batches):
+                    iteration = epoch * n_batches + batch + 1
                     batch_x, batch_y = mnist_data.train.next_batch(batch_size)
                     _, summary = sess.run(
-                        [train, merge],
-                        feed_dict={x: batch_x,
-                                   y: batch_y,
-                                   keep_prob: dropout})
-                    writer.add_summary(summary, global_step=step)
+                        [train, merged],
+                        feed_dict={
+                            inputs: batch_x,
+                            targets: batch_y,
+                            keep_prob: dropout
+                        })
+                    train_writer.add_summary(summary, iteration)
 
-                    if step % display_step == 0:
+                    if (iteration % display_every_n == 0):
                         # Calculate batch train loss and accuracy
                         loss, acc = sess.run(
                             [cost, accuracy],
-                            feed_dict={x: batch_x,
-                                       y: batch_y,
-                                       keep_prob: 1.})
+                            feed_dict={
+                                inputs: batch_x,
+                                targets: batch_y,
+                                keep_prob: 1.
+                            })
                         print(
-                            'Iter {:>2} - Loss: {:>10.4f} Training Accuracy: {:.5f}'.
-                            format(step * batch_size, loss, acc))
+                            'Iteration {}/{} - Loss: {:>.4f} Training Accuracy: {:.4f}'.
+                            format(iteration, iterations, loss, acc))
 
-                    step += 1
-
-                # Calculate batch validation loss and accuracy
-                loss, valid_acc = sess.run(
-                    [cost, accuracy],
-                    feed_dict={
-                        x: mnist_data.validation.images,
-                        y: mnist_data.validation.labels,
-                        keep_prob: 1.
-                    })
-                print(
-                    'Epoch {:>2}, Batch {:>3} - Loss: {:>10.4f} Validation Accuracy: {:.5f}'.
-                    format(epoch + 1, batch + 1, loss, valid_acc))
+                    if (iteration % save_every_n == 0) or (
+                            iteration == iterations):
+                        # Calculate batch validation loss and accuracy
+                        loss, valid_acc, summary = sess.run(
+                            [cost, accuracy, merged],
+                            feed_dict={
+                                inputs: mnist_data.validation.images,
+                                targets: mnist_data.validation.labels,
+                                keep_prob: 1.
+                            })
+                        test_writer.add_summary(summary, iteration)
+                        print(
+                            'Epoch {}/{}, Iteration {}/{} - Loss: {:>.4f} Validation Accuracy: {:.4f}'.
+                            format(epoch + 1, epochs, iteration, iterations,
+                                   loss, valid_acc))
+                        ckpt = saver.save(
+                            sess,
+                            os.path.join(FLAGS.ckpt_dir,
+                                         "ckpt_i{}_{:.3f}.ckpt".format(
+                                             iteration, loss)))
+                        # global_step=iteration)
+                        print('Save checkpoint: {}'.format(ckpt))
 
             elapsed_time = time.time() - start
             print('done!')
@@ -177,15 +198,11 @@ def main(_):
             test_acc = sess.run(
                 accuracy,
                 feed_dict={
-                    x: mnist_data.test.images,
-                    y: mnist_data.test.labels,
+                    inputs: mnist_data.test.images,
+                    targets: mnist_data.test.labels,
                     keep_prob: 1.
                 })
             print('Testing Accuracy: {}'.format(test_acc))
-
-            ckpt = saver.save(
-                sess, os.path.join(FLAGS.ckpt_dir, 'ckpt'), global_step=step)
-            print('Save checkpoint: %s' % ckpt)
 
             # Write graph.
             tf.train.write_graph(
