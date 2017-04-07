@@ -1,12 +1,14 @@
 # Android-Tensorflow-MNIST
 
-![0](/images/0.jpg =100x100)
-![1](/images/1.jpg)
-![2](/images/2.jpg)
-![3](/images/3.jpg)
-![4](/images/4.jpg)
-![5](/images/5.jpg)
-![6](/images/6.jpg)
-![7](/images/7.jpg)
-![8](/images/8.jpg)
-![9](/images/9.jpg)
+## Phone screenshots
+
+<img src="./images/0.png" width = "300" height = "500" alt="0" align="center" />
+<img src="./images/1.png" width = "300" height = "500" alt="1" align="center" />
+<img src="./images/2.png" width = "300" height = "500" alt="2" align="center" />
+<img src="./images/3.png" width = "300" height = "500" alt="3" align="center" />
+<img src="./images/4.png" width = "300" height = "500" alt="4" align="center" />
+<img src="./images/5.png" width = "300" height = "500" alt="5" align="center" />
+<img src="./images/6.png" width = "300" height = "500" alt="6" align="center" />
+<img src="./images/7.png" width = "300" height = "500" alt="7" align="center" />
+<img src="./images/8.png" width = "300" height = "500" alt="8" align="center" />
+<img src="./images/9.png" width = "300" height = "500" alt="9" align="center" />
