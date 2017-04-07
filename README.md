@@ -1,6 +1,6 @@
 # Android-Tensorflow-MNIST
 
-![0](/images/0.jpg)
+![0](/images/0.jpg =100x100)
 ![1](/images/1.jpg)
 ![2](/images/2.jpg)
 ![3](/images/3.jpg)
