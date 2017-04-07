@@ -26,7 +26,7 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     private static final String MODEL_FILE = "file:///android_asset/mnist_graph_frozen.pb";
     private static final String LABEL_FILE = "file:///android_asset/graph_label_strings.txt";
     private static final int INPUT_SIZE = 28;
-    private static final String INPUT_NAME = "input";
+    private static final String INPUT_NAME = "inputs/inputs";
     private static final String OUTPUT_NAME = "readout/output";
 
     private Classifier classifier;
