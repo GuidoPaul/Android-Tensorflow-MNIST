@@ -8,5 +8,7 @@
 /captures
 .externalNativeBuild
 /.idea
-/mnist/*
-!/mnist/mnist.py
+/mnist/ckpt/*
+/mnist/log/*
+/mnist/MNIST_data/*
+/mnist/model/*
